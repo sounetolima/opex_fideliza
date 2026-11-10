@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Opex Fideliza — CRM para WhatsApp Web",
   "short_name": "Opex Fideliza",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "description": "CRM leve para WhatsApp Web: lembretes da agenda, pós-atendimento automático, aniversariantes, funil e histórico de cada cliente.",
   "minimum_chrome_version": "111",
   "permissions": [
@@ -79,7 +79,7 @@
     "128": "icons/icon128.png"
   },
   "oauth2": {
-    "client_id": "55134626360-2u0paldetdm3d9trpa96rua3fdro4ti5.apps.googleusercontent.com",
+    "client_id": "584934876126-er89gu4psdup90in5bjhd82542b05v31.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/calendar.readonly",
       "https://www.googleapis.com/auth/calendar.events",

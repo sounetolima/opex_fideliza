@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Opex Care · Administração</title>
+<style>
+  :root { --bg:#0b0f1a; --card:#141b2d; --line:#26324d; --txt:#e8ecf5; --mut:#8a96b0; --acc:#4f7cff; --ok:#2fbf71; --bad:#e5484d; --warn:#f5a524; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--txt); }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; border-bottom:1px solid var(--line); }
+  header b { font-size:16px; letter-spacing:.3px; }
+  header small { color:var(--mut); margin-left:8px; }
+  main { max-width:980px; margin:0 auto; padding:22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
+  h2 { margin:0 0 12px; font-size:17px; }
+  label { display:block; font-size:12px; color:var(--mut); margin:10px 0 4px; }
+  input, select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:#0e1424; color:var(--txt); font-size:14px; }
+  button { padding:9px 14px; border-radius:8px; border:0; background:var(--acc); color:#fff; font-weight:600; font-size:13px; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--txt); }
+  button.danger { background:var(--bad); }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .row > div { flex:1; min-width:160px; }
+  .tabs { display:flex; gap:6px; margin-bottom:16px; }
+  .tab { background:transparent; color:var(--mut); border:1px solid var(--line); }
+  .tab.on { background:var(--acc); color:#fff; border-color:var(--acc); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  th { color:var(--mut); font-weight:600; font-size:12px; }
+  .pill { display:inline-block; padding:3px 9px; border-radius:99px; font-size:12px; font-weight:600; }
+  .on-pill { background:rgba(47,191,113,.15); color:var(--ok); }
+  .off-pill { background:rgba(229,72,77,.15); color:var(--bad); }
+  .role { background:rgba(79,124,255,.15); color:#9db5ff; }
+  .msg { margin-top:10px; font-size:13px; min-height:18px; }
+  .msg.err { color:var(--bad); } .msg.ok { color:var(--ok); }
+  .actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .actions button { padding:6px 9px; font-size:12px; }
+  .hidden { display:none !important; }
+  .login { max-width:360px; margin:70px auto; }
+  .muted { color:var(--mut); font-size:13px; line-height:1.5; }
+  .notice { background:rgba(245,165,36,.12); border:1px solid rgba(245,165,36,.4); color:#ffd27a; padding:12px; border-radius:8px; font-size:13px; line-height:1.5; }
+  @media (max-width:640px) { th:nth-child(3), td:nth-child(3) { display:none; } }
+</style>
+</head>
+<body>
+<header>
+  <div><b>OPEX CARE</b><small>Administração</small></div>
+  <div id="who" class="hidden">
+    <span id="whoName" class="muted"></span>
+    <button class="ghost" id="logout" style="margin-left:10px">Sair</button>
+  </div>
+</header>
+
+<main>
+  <!-- LOGIN -->
+  <section id="loginView" class="card login">
+    <h2>Entrar</h2>
+    <form id="loginForm" autocomplete="on">
+      <label for="lLogin">Login</label>
+      <input id="lLogin" name="username" autocomplete="username" required>
+      <label for="lPass">Senha</label>
+      <input id="lPass" name="password" type="password" autocomplete="current-password" required>
+      <div style="margin-top:14px"><button type="submit" id="lBtn" style="width:100%">Entrar</button></div>
+      <div id="lMsg" class="msg err"></div>
+    </form>
+  </section>
+
+  <!-- PAINEL -->
+  <section id="appView" class="hidden">
+    <div class="tabs">
+      <button class="tab on" data-tab="users" id="tabUsers">Usuários</button>
+      <button class="tab" data-tab="finance" id="tabFinance">Financeiro</button>
+    </div>
+
+    <!-- USUÁRIOS -->
+    <div id="pUsers">
+      <div class="card">
+        <h2>Novo atendente ou usuário</h2>
+        <form id="createForm">
+          <div class="row">
+            <div><label for="cName">Nome</label><input id="cName" required></div>
+            <div><label for="cLogin">Login (e-mail ou usuário)</label><input id="cLogin" required autocomplete="off"></div>
+            <div><label for="cPass">Senha inicial (mín. 8)</label><input id="cPass" type="text" minlength="8" required autocomplete="off"></div>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <div><label for="cRole">Perfil</label>
+              <select id="cRole">
+                <option value="atendente">Atendente (agenda e clientes)</option>
+                <option value="financeiro">Financeiro (caixa, agenda e clientes)</option>
+                <option value="admin">Administrador (tudo)</option>
+              </select>
+            </div>
+            <div><label for="cUnit">Unidade</label><input id="cUnit" placeholder="Ex.: Unidade Centro"></div>
+            <div style="flex:0 0 auto"><button type="submit">Criar acesso</button></div>
+          </div>
+          <div id="cMsg" class="msg"></div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h2 style="margin:0">Usuários</h2>
+          <button class="ghost" id="reload">Atualizar</button>
+        </div>
+        <div style="overflow-x:auto;margin-top:10px">
+          <table>
+            <thead><tr><th>Nome</th><th>Login</th><th>Unidade</th><th>Perfil</th><th>Situação</th><th>Ações</th></tr></thead>
+            <tbody id="userRows"></tbody>
+          </table>
+        </div>
+        <div id="uMsg" class="msg"></div>
+      </div>
+    </div>
+
+    <!-- FINANCEIRO -->
+    <div id="pFinance" class="hidden">
+      <div class="card">
+        <h2>Fluxo de caixa</h2>
+        <div class="notice">
+          O fluxo de caixa ainda não está ligado. Quando for implementado, cada unidade terá a sua planilha no Google Sheets,
+          guardada no Google Drive do próprio cliente. Aqui aparecerão entradas, despesas e saldo por unidade.
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  const API = '/api/admin';
+  const KEY = 'opexCareAdmin';
+  const $ = (id) => document.getElementById(id);
+  let session = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+  const ROLE_AREAS = {
+    admin: ['users', 'finance', 'agenda', 'clients'],
+    financeiro: ['finance', 'agenda', 'clients'],
+    atendente: ['agenda', 'clients'],
+  };
+  const ROLE_NAMES = { admin: 'Administrador', financeiro: 'Financeiro', atendente: 'Atendente' };
+
+  function setMsg(el, text, ok) { el.textContent = text || ''; el.className = 'msg ' + (ok ? 'ok' : 'err'); }
+
+  async function api(method, path, body) {
+    const headers = { 'content-type': 'application/json' };
+    if (session && session.token) headers.authorization = 'Bearer ' + session.token;
+    const res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    let data = {};
+    try { data = await res.json(); } catch (_) {}
+    if (res.status === 401 && path !== '/login') { signOut('Sua sessão expirou. Entre de novo.'); throw new Error('sessão'); }
+    if (!res.ok) throw new Error(data.error || 'Erro ao falar com o servidor.');
+    return data;
+  }
+
+  function signOut(msg) {
+    session = null; sessionStorage.removeItem(KEY);
+    $('appView').classList.add('hidden'); $('who').classList.add('hidden');
+    $('loginView').classList.remove('hidden');
+    setMsg($('lMsg'), msg || '');
+  }
+
+  function showApp() {
+    const u = session.user;
+    const areas = ROLE_AREAS[u.role] || [];
+    $('loginView').classList.add('hidden');
+    $('appView').classList.remove('hidden');
+    $('who').classList.remove('hidden');
+    $('whoName').textContent = (u.name || u.login) + ' · ' + (ROLE_NAMES[u.role] || u.role);
+    const canUsers = areas.includes('users');
+    const canFinance = areas.includes('finance');
+    $('tabUsers').classList.toggle('hidden', !canUsers);
+    $('tabFinance').classList.toggle('hidden', !canFinance);
+    showTab(canUsers ? 'users' : 'finance');
+    if (canUsers) loadUsers();
+  }
+
+  function showTab(name) {
+    document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+    $('pUsers').classList.toggle('hidden', name !== 'users');
+    $('pFinance').classList.toggle('hidden', name !== 'finance');
+  }
+  document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+  $('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $('lBtn'); btn.disabled = true; setMsg($('lMsg'), '');
+    try {
+      const data = await api('POST', '/login', { login: $('lLogin').value, password: $('lPass').value });
+      session = { token: data.token, user: data.user };
+      sessionStorage.setItem(KEY, JSON.stringify(session));
+      $('lPass').value = '';
+      showApp();
+    } catch (err) {
+      setMsg($('lMsg'), err.message);
+    } finally { btn.disabled = false; }
+  });
+
+  $('logout').addEventListener('click', () => signOut('Você saiu.'));
+  $('reload').addEventListener('click', loadUsers);
+
+  async function loadUsers() {
+    try {
+      const data = await api('GET', '/users');
+      renderUsers(data.users || []);
+    } catch (err) { if (err.message !== 'sessão') setMsg($('uMsg'), err.message); }
+  }
+
+  function cell(text) { const td = document.createElement('td'); td.textContent = text; return td; }
+  function btn(label, cls, onClick) {
+    const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls;
+    b.addEventListener('click', onClick); return b;
+  }
+
+  function renderUsers(users) {
+    const tbody = $('userRows'); tbody.textContent = '';
+    users.forEach((u) => {
+      const tr = document.createElement('tr');
+      tr.appendChild(cell(u.name));
+      tr.appendChild(cell(u.login));
+      tr.appendChild(cell(u.unit || '—'));
+      const roleTd = document.createElement('td');
+      const roleSel = document.createElement('select');
+      ['atendente', 'financeiro', 'admin'].forEach((r) => {
+        const o = document.createElement('option'); o.value = r; o.textContent = ROLE_NAMES[r]; if (r === u.role) o.selected = true; roleSel.appendChild(o);
+      });
+      roleSel.addEventListener('change', () => changeRole(u, roleSel.value));
+      roleTd.appendChild(roleSel); tr.appendChild(roleTd);
+      const st = document.createElement('td');
+      const pill = document.createElement('span'); pill.className = 'pill ' + (u.active ? 'on-pill' : 'off-pill');
+      pill.textContent = u.active ? 'Ativo' : 'Inativo'; st.appendChild(pill); tr.appendChild(st);
+      const acts = document.createElement('td'); const wrap = document.createElement('div'); wrap.className = 'actions';
+      wrap.appendChild(btn('Nova senha', 'ghost', () => resetPassword(u)));
+      wrap.appendChild(btn(u.active ? 'Desativar' : 'Reativar', u.active ? 'danger' : 'ghost', () => toggleActive(u)));
+      acts.appendChild(wrap); tr.appendChild(acts);
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function patchUser(u, patch, okText) {
+    try {
+      await api('PATCH', '/users/' + encodeURIComponent(u.id), patch);
+      setMsg($('uMsg'), okText, true);
+      await loadUsers();
+    } catch (err) { if (err.message !== 'sessão') { setMsg($('uMsg'), err.message); await loadUsers(); } }
+  }
+
+  function changeRole(u, role) {
+    if (!confirm('Mudar o perfil de ' + u.name + ' para ' + ROLE_NAMES[role] + '?')) return loadUsers();
+    patchUser(u, { role }, 'Perfil atualizado.');
+  }
+  function toggleActive(u) {
+    const next = !u.active;
+    if (!confirm((next ? 'Reativar ' : 'Desativar ') + u.name + '?')) return;
+    patchUser(u, { active: next }, next ? 'Acesso reativado.' : 'Acesso desativado.');
+  }
+  function resetPassword(u) {
+    const pass = prompt('Nova senha para ' + u.name + ' (mínimo 8 caracteres):');
+    if (!pass) return;
+    if (pass.length < 8) { setMsg($('uMsg'), 'A senha precisa ter pelo menos 8 caracteres.'); return; }
+    patchUser(u, { password: pass }, 'Senha redefinida. Informe a nova senha ao usuário.');
+  }
+
+  $('createForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = $('cMsg'); setMsg(msg, '');
+    try {
+      const data = await api('POST', '/users', {
+        name: $('cName').value, login: $('cLogin').value, password: $('cPass').value,
+        role: $('cRole').value, unit: $('cUnit').value,
+      });
+      setMsg(msg, 'Acesso criado para ' + data.user.name + '.', true);
+      e.target.reset();
+      loadUsers();
+    } catch (err) { if (err.message !== 'sessão') setMsg(msg, err.message); }
+  });
+
+  if (session && session.token) showApp();
+})();
+</script>
+</body>
+</html>

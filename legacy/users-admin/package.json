@@ -1,0 +1,14 @@
+{
+  "name": "opex-care-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Servidor do Opex Care: login admin e gestão de usuários (atendentes e financeiro).",
+  "main": "src/users.js",
+  "scripts": {
+    "test": "node --test test/users.test.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@netlify/blobs": "^8.0.0"
+  }
+}

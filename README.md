@@ -1,33 +1,20 @@
-# Opex Care — servidor (login admin e usuários)
+# Opex Fideliza — licenças e painel do administrador
 
-Gerencia as contas de quem compra o Opex Care: o administrador cria usuários para a equipe (atendentes e financeiro) e controla o acesso.
+Clone do painel de licenças do Opex Agent, adaptado para o Opex Fideliza (versão Light).
 
-## Perfis
-| Perfil | Agenda | Clientes | Financeiro | Gerencia usuários |
-|---|---|---|---|---|
-| admin | ✅ | ✅ | ✅ | ✅ |
-| financeiro | ✅ | ✅ | ✅ | — |
-| atendente | ✅ | ✅ | — | — |
+- `/admin`: painel com licenças, pedidos, bloqueio, computadores, senha do cliente e **nome da empresa e logo por cliente**.
+- `/api/verify`, `/api/login`, `/api/release`: usados pela extensão. Devolvem a marca (nome e logo) do cliente.
+- `/api/order`: pedido vindo do site (fica pendente até o administrador aprovar).
 
-## Configuração (variáveis de ambiente no Netlify)
-- `TOKEN_SECRET`: segredo longo e aleatório para assinar as sessões. **Obrigatório.**
-- `ADMIN_LOGIN` e `ADMIN_PASSWORD`: criam o primeiro administrador, só se ainda não existir nenhum.
-
-## Rotas (`/api/admin/...`)
-- `POST /login` — `{ login, password }` → `{ token, user }`
-- `GET /users` — lista usuários (token de admin)
-- `POST /users` — `{ login, password, name, role, unit }`
-- `PATCH /users/:id` — `{ role?, name?, unit?, active?, password? }`
-
-Senhas são guardadas com scrypt. Tokens valem 12 horas.
+## Variáveis de ambiente (Netlify)
+- `TOKEN_SECRET`: segredo longo para assinar a sessão do painel.
+- `ADMIN_PASSWORD`: senha do primeiro acesso. Depois que entrar, troque em "Alterar senha".
 
 ## Testes
-```
-npm install
-npm test
-```
+    npm test
 
-## Pendências
-- Ligar o login de atendentes à extensão (hoje a extensão ainda valida licença pelo servidor antigo).
-- Rotas do financeiro (fluxo de caixa e Google Sheets).
-- Publicação: o Netlify precisa estar com a proteção de acesso desligada para o site ser público.
+## Pastas
+- `public/` e `netlify/`: painel de licenças e API (site `opex-care-licencas`).
+- `site/`: site de vendas (site `opex-fideliza-site`, diretório base `site`). Gerado por `node tools/build-site.js site`.
+- `extension/`: código da extensão do Chrome (versão enviada à Chrome Web Store).
+- `public/download/opex-care.zip`: extensão para instalação manual.

@@ -1,24 +1,22 @@
-// Armazenamento: memória (testes e desenvolvimento) ou Netlify Blobs (produção).
-// Tudo fica em uma chave só, 'users', porque o volume de contas é pequeno.
+// Armazenamento: memória (testes) ou Netlify Blobs (produção). Tudo em uma chave só: 'db'.
 
 function memoryStore() {
-  const data = new Map();
+  let data = null;
   return {
-    async load() { return data.get('users') || { users: [] }; },
-    async save(db) { data.set('users', JSON.parse(JSON.stringify(db))); },
+    async load() { return data ? JSON.parse(JSON.stringify(data)) : {}; },
+    async save(db) { data = JSON.parse(JSON.stringify(db)); },
   };
 }
 
-function blobsStore(name = 'opex-care') {
+function blobsStore(name = 'opex-care-licenses') {
   return {
     async load() {
       const { getStore } = require('@netlify/blobs');
-      const db = await getStore(name).get('users', { type: 'json' });
-      return db || { users: [] };
+      return (await getStore({ name, consistency: 'strong' }).get('db', { type: 'json' })) || {};
     },
     async save(db) {
       const { getStore } = require('@netlify/blobs');
-      await getStore(name).setJSON('users', db);
+      await getStore({ name, consistency: 'strong' }).setJSON('db', db);
     },
   };
 }

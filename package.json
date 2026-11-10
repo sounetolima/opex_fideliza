@@ -1,14 +1,9 @@
 {
-  "name": "opex-care-server",
+  "name": "opex-care-licencas",
   "version": "1.0.0",
   "private": true,
-  "description": "Servidor do Opex Care: login admin e gestão de usuários (atendentes e financeiro).",
-  "main": "src/users.js",
-  "scripts": {
-    "test": "node --test test/users.test.js"
-  },
+  "description": "Licenças do Opex Fideliza: painel do administrador, verificação e marca (nome e logo) por cliente.",
+  "scripts": { "test": "node --test test/licenses.test.js" },
   "engines": { "node": ">=18" },
-  "dependencies": {
-    "@netlify/blobs": "^8.0.0"
-  }
+  "dependencies": { "@netlify/blobs": "^8.0.0" }
 }

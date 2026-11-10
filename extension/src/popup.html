@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Opex Fideliza</title>
+<style>
+  :root { --navy:#060C1A; --navy2:#0B1630; --blue:#3D63DD; --gold:#D4AA46; --text:#F8FAFC; --muted:#94A3B8; --line:rgba(255,255,255,.1); }
+  * { box-sizing: border-box; }
+  body { margin:0; width:320px; font:13px/1.45 Inter, "Segoe UI", system-ui, sans-serif; color:var(--text);
+    background: radial-gradient(400px 220px at 20% 0%, rgba(30,70,170,.35), transparent 70%), linear-gradient(160deg,#04070E,#060C1A 55%,#03050B); }
+  header { display:flex; align-items:center; gap:10px; padding:16px 16px 10px; }
+  header img { width:34px; height:34px; border-radius:8px; }
+  h1 { font-size:16px; margin:0; letter-spacing:.04em; }
+  .sub { font-size:10px; letter-spacing:.22em; color:var(--gold); text-transform:uppercase; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:6px 16px; }
+  .kpi { background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:10px; padding:10px; }
+  .kpi b { display:block; font-size:18px; }
+  .kpi span { color:var(--muted); font-size:11px; }
+  .actions { padding:12px 16px 16px; display:grid; gap:8px; }
+  button, label.btn { all:unset; text-align:center; cursor:pointer; padding:9px 12px; border-radius:9px; font-weight:600; font-size:12.5px; }
+  .primary { background:var(--blue); color:#fff; }
+  .ghost { border:1px solid var(--line); color:var(--text); }
+  .ghost:hover { border-color:var(--gold); }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  #msg { color:var(--gold); font-size:11.5px; min-height:16px; padding:0 16px 12px; }
+  footer { color:var(--muted); font-size:10.5px; padding:0 16px 14px; }
+</style>
+</head>
+<body>
+  <header>
+    <img src="../icons/icon48.png" alt="" />
+    <div><h1>OPEX FIDELIZA</h1><div class="sub">CRM para WhatsApp</div></div>
+  </header>
+  <div class="grid">
+    <div class="kpi"><b id="k-leads">0</b><span>Clientes</span></div>
+    <div class="kpi"><b id="k-sched">0</b><span>Retornos pendentes</span></div>
+    <div class="kpi"><b id="k-follow">0</b><span>Retornos hoje</span></div>
+    <div class="kpi"><b id="k-sent">0</b><span>Envios hoje</span></div>
+  </div>
+  <div class="actions">
+    <button class="primary" id="open">Abrir WhatsApp Web</button>
+    <div class="row">
+      <button class="ghost" id="export">Exportar backup</button>
+      <label class="ghost btn" for="import">Importar backup</label>
+    </div>
+    <input type="file" id="import" accept=".json,application/json" hidden />
+  </div>
+  <div id="msg"></div>
+  <footer>Seus dados ficam só neste navegador. Faça backup com frequência.</footer>
+  <script src="popup.js"></script>
+</body>
+</html>

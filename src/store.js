@@ -12,11 +12,11 @@ function blobsStore(name = 'opex-care-licenses') {
   return {
     async load() {
       const { getStore } = require('@netlify/blobs');
-      return (await getStore({ name, consistency: 'strong' }).get('db', { type: 'json' })) || {};
+      return (await getStore({ name, consistency: 'eventual' }).get('db', { type: 'json' })) || {};
     },
     async save(db) {
       const { getStore } = require('@netlify/blobs');
-      await getStore({ name, consistency: 'strong' }).setJSON('db', db);
+      await getStore({ name, consistency: 'eventual' }).setJSON('db', db);
     },
   };
 }

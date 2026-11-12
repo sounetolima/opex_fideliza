@@ -11,7 +11,7 @@
 
   let shadow, drawer, body, launcher, renderQueued = false;
 
-  const TABS = [['hoje', 'Hoje'], ['atend', 'Atendimento'], ['agenda', 'Agenda'], ['aniv', 'Aniversariantes'], ['clientes', 'Clientes'], ['funil', 'Funil'], ['cliente', 'Cliente'], ['ajustes', 'Ajustes']];
+  const TABS = [['hoje', 'Hoje'], ['atend', 'Atendimento'], ['agenda', 'Agenda'], ['aniv', 'Aniversariantes'], ['clientes', 'Clientes'], ['funil', 'Funil'], ['cliente', 'Cliente'], ['disparos', 'Disparos'], ['ajustes', 'Ajustes']];
   const color = (c) => (/^#[0-9a-f]{6}$/i.test(c || '') ? c : '#3D63DD');
   const cname = (c) => (c && (c.name || U.formatPhone(c.phone))) || 'Sem nome';
   const fmtDate = (ts) => new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -27,6 +27,7 @@
     clientes: ic('<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M16 4a4 4 0 0 1 0 8M22 21c0-3-2-5-4-5.5"/>'),
     hoje: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>'),
     atend: ic('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),
+    disparos: ic('<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>'),
     agenda: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>'),
     aniv: ic('<path d="M20 21V11a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10"/><path d="M4 16c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1M12 8V5M10 5h4"/>'),
     funil: ic('<rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/>'),
@@ -45,6 +46,7 @@
   const chipsHint = (keys, extra = '') => `<div class="chips">${keys.map((k) => `<button class="chip" data-a="copy-var" data-v="{${k}}">{${k}}</button>`).join('')}</div><div class="muted small">Toque numa variável para copiar e colar na mensagem.${extra}</div>`;
   const varsHint = chipsHint(MSG_VARS, ' Variações: {Oi|Olá|E aí}');
 
+  ui.bcSrc = 'stage'; ui.bcStages = new Set(); ui.bcTags = new Set();
   function activeContact() { return ui.activeId ? S.contact(ui.activeId) : null; }
 
   // ---------- painel: cartões de cada aba ----------
@@ -400,7 +402,32 @@
       <div class="card"><b>Enviados</b>${sent.map((x) => row(x, ['Enviado', 'ok'])).join('') || '<div class="muted small">Nenhum lembrete enviado ainda.</div>'}</div>`;
   }
 
-  const TAB_FN = { hoje: hojeTab, atend: atendTab, agenda: agendaTab, aniv: anivTab, clientes: clientesTab, funil: funilTab, cliente: clienteTab, ajustes: ajustesTab };
+  // ---------- disparos em massa (público por etapa ou etiqueta, fila e limites do motor) ----------
+  function disparosTab() {
+    const src = ui.bcSrc;
+    const contacts = Object.values(st().contacts).filter((c) => c.phone && (src === 'stage' ? ui.bcStages.has(c.stageId) : (c.tags || []).some((t) => ui.bcTags.has(t))));
+    const left = Math.max(0, set().dailyLimit - S.sentToday());
+    const pending = st().queue.filter((q) => q.status === 'pending').length;
+    const chips = (items, sel, act) => items.map((x) => `<button class="chip ${sel.has(x.id) ? 'on' : ''}" data-a="${act}" data-id="${esc(x.id)}">${esc(x.name || x.label || x.id)}</button>`).join('') || '<span class="muted small">Nada cadastrado.</span>';
+    const recent = st().queue.slice(-12).reverse().map((q) => `<div class="item"><div class="top"><span class="ttl">${esc(q.name || q.phone)}</span>
+      <span class="pill ${q.status === 'sent' ? 'ok' : q.status === 'failed' ? 'bad' : 'gold'}">${({ pending: 'Na fila', sent: 'Enviado', failed: 'Falhou', cancelled: 'Cancelado' })[q.status] || q.status}</span></div></div>`).join('');
+    return `<div class="card"><b>Público</b>
+        <div class="row">${[['stage', 'Etapas do funil'], ['tag', 'Etiquetas']].map(([v, l]) => `<button class="chip ${src === v ? 'on' : ''}" data-a="bc-src" data-k="${v}">${l}</button>`).join('')}</div>
+        <div class="row" style="flex-wrap:wrap">${src === 'stage' ? chips(st().stages, ui.bcStages, 'bc-stage') : chips(st().tags, ui.bcTags, 'bc-tag')}</div>
+        <div class="muted small">${contacts.length} contato(s) com telefone neste público · ${left} envio(s) restantes hoje</div>
+      </div>
+      <div class="card"><b>Mensagem</b>
+        <textarea class="in" id="bc-text" rows="5" placeholder="Olá {nome}, tudo bem? ...">${esc(ui.bcText || '')}</textarea>
+        ${varsHint}
+        <div class="row"><span class="grow"></span><button class="btn gold" data-a="disp-send">Enviar para ${contacts.length}</button></div>
+        <div class="notice small">Use com responsabilidade: envie só para clientes que pediram contato. Disparo em massa para desconhecidos pode bloquear o número no WhatsApp.</div>
+      </div>
+      <div class="card"><b>Fila</b> <span class="muted small">${pending} na fila</span>
+        <div class="list">${recent || '<div class="muted small">Nenhum envio ainda.</div>'}</div>
+      </div>`;
+  }
+
+  const TAB_FN = { hoje: hojeTab, atend: atendTab, agenda: agendaTab, aniv: anivTab, clientes: clientesTab, funil: funilTab, cliente: clienteTab, disparos: disparosTab, ajustes: ajustesTab };
 
   function render() {
     if (!body) return;
@@ -415,6 +442,8 @@
     if (bl && br.logo && bl.getAttribute('src') !== br.logo) bl.src = br.logo;
     if (!OA.license.ok) { body.innerHTML = lockCard(); return; }
     body.innerHTML = (TAB_FN[ui.tab] || hojeTab)();
+    const rail = shadow.querySelector('.rail');
+    if (rail) rail.style.display = ui.activeId && OA.license.ok ? '' : 'none';
     const n = E.dueFollowups().length;
     const badge = launcher && launcher.querySelector('.badge');
     if (badge) { badge.textContent = n; badge.style.display = n ? '' : 'none'; }
@@ -443,6 +472,23 @@
     'slot-pick': (el) => { saveBk(); ui.bk.pick = Number(el.dataset.t); render(); },
     'appt-new': (el) => { const c = S.contact(el.dataset.id); ui.bookFor = c ? { name: c.name || '', phone: c.phone || '' } : null; ui.tab = 'agenda'; render(); },
     open: (el) => { ui.activeId = el.dataset.id; ui.tab = 'cliente'; render(); },
+    'rail-go': (el) => { ui.tab = el.dataset.tab; render(); },
+    'rail-agenda': () => { const c = S.contact(ui.activeId); ui.bookFor = c ? { name: c.name || '', phone: c.phone || '' } : null; ui.tab = 'agenda'; render(); },
+    'bc-src': (el) => { ui.bcSrc = el.dataset.k; render(); },
+    'bc-stage': (el) => { ui.bcStages.has(el.dataset.id) ? ui.bcStages.delete(el.dataset.id) : ui.bcStages.add(el.dataset.id); render(); },
+    'bc-tag': (el) => { ui.bcTags.has(el.dataset.id) ? ui.bcTags.delete(el.dataset.id) : ui.bcTags.add(el.dataset.id); render(); },
+    'disp-send': () => {
+      const text = ((shadow.querySelector('#bc-text') || {}).value || '').trim();
+      ui.bcText = text;
+      const src = ui.bcSrc;
+      const ids = Object.values(st().contacts).filter((c) => c.phone && (src === 'stage' ? ui.bcStages.has(c.stageId) : (c.tags || []).some((t) => ui.bcTags.has(t)))).map((c) => c.id);
+      if (!ids.length) return toast('Escolha ao menos um público com telefone.', true);
+      if (!text) return toast('Escreva a mensagem.', true);
+      const n = E.enqueueBroadcast(ids, 'disparo', [text]);
+      toast(`${n} mensagem(ns) na fila.`);
+      E.tick();
+      render();
+    },
     'bd-preset': (el) => { ui.bdPreset = el.dataset.k; ui.bdSel.clear(); render(); },
     'bd-toggle': (el) => { el.checked ? ui.bdSel.add(el.dataset.id) : ui.bdSel.delete(el.dataset.id); render(); },
     'bd-all': () => {
@@ -667,6 +713,14 @@
     const logo = chrome.runtime.getURL('icons/icon48.png');
     shadow.innerHTML = `<style>${css}</style>
       <button class="launcher" data-a="panel-toggle" title="Abrir Opex Fideliza"><img src="${logo}" alt="Opex Fideliza"><span class="badge" style="display:none">0</span></button>
+      <div class="rail">
+        <div class="items">
+          <button class="rbtn" data-a="rail-go" data-tab="cliente">${ICON.clientes}<span class="tip">Ficha do cliente</span></button>
+          <button class="rbtn" data-a="rail-agenda">${ICON.agenda}<span class="tip">Agendar</span></button>
+          <button class="rbtn" data-a="rail-go" data-tab="cliente">${ICON.atend}<span class="tip">Anotações</span></button>
+          <button class="rbtn" data-a="rail-go" data-tab="disparos">${ICON.disparos}<span class="tip">Disparos</span></button>
+        </div>
+      </div>
       <aside class="drawer open">
         <div class="head"><img class="brand-logo" src="${logo}" alt=""><div class="brand"><b class="brand-name">Opex Fideliza</b><span class="brand-sub">CRM para WhatsApp</span></div>
           <button class="icon-btn" data-a="panel-toggle" title="Fechar">✕</button></div>

@@ -259,4 +259,4 @@ h3.fold small { margin-left: auto; }
 .sec { display:block; margin-top:12px; font-size:13px; }
 
 /* Cliques: só o painel e o botão recebem eventos (o host do Shadow DOM deixa passar o resto). */
-.launcher, .drawer, .board, .toast { pointer-events: auto; }
+.launcher, .drawer, .board, .toast, .rail { pointer-events: auto; }

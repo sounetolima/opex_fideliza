@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Opex Fideliza — Gestão de licenças</title>
+<link rel="icon" href="/img/logo.png">
+<style>
+:root{--navy0:#04070E;--navy:#060C1A;--navy2:#0B1630;--navy3:#12204A;--blue:#3D63DD;--gold:#D4AA46;--text:#F8FAFC;--muted:#94A3B8;--line:rgba(255,255,255,.09);--ok:#22C55E;--warn:#F59E0B;--bad:#EF4444}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 Inter,"Segoe UI",system-ui,sans-serif;background:linear-gradient(160deg,var(--navy0),var(--navy) 60%,#03050B);color:var(--text);min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 18px 60px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:20px}header img{width:38px;height:38px}
+header b{font-size:17px;letter-spacing:.04em}header small{display:block;color:var(--gold);letter-spacing:.24em;font-size:10px;text-transform:uppercase}
+header .sp{flex:1}
+.btn{border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:9px;padding:7px 13px;cursor:pointer}.btn:hover{background:rgba(255,255,255,.1)}
+.btn.gold{background:var(--gold);color:#241a00;border-color:var(--gold);font-weight:700}.btn.danger{color:#fca5a5}.btn.sm{padding:4px 9px;font-size:12px}
+.card{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:16px}
+.login{max-width:360px;margin:12vh auto}.login h1{font-size:20px;margin:0 0 4px}.login p{color:var(--muted);margin:0 0 14px}
+input,select,textarea{width:100%;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:9px;padding:8px 10px;outline:none}input:focus,select:focus{border-color:var(--blue)}
+label{display:block;font-size:12px;color:var(--muted);margin:0 0 4px}
+.err{color:#fca5a5;margin-top:8px;min-height:18px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.kpi b{display:block;font-size:26px;line-height:1.1}.kpi span{color:var(--muted);font-size:12px}
+.kpi.g b{color:var(--ok)}.kpi.w b{color:var(--warn)}.kpi.r b{color:var(--bad)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.bar input{flex:1;min-width:200px}.bar select{width:auto}
+table{width:100%;border-collapse:collapse}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:8px;border-bottom:1px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}tr:hover td{background:rgba(255,255,255,.025)}
+.tw{overflow-x:auto}.key{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--gold);cursor:pointer}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700}
+.pill.active{background:rgba(34,197,94,.15);color:var(--ok)}.pill.blocked{background:rgba(239,68,68,.15);color:#fca5a5}.pill.expired{background:rgba(245,158,11,.15);color:var(--warn)}
+.sub{color:var(--muted);font-size:12px}.acts{display:flex;gap:5px;flex-wrap:wrap}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:#475569}.dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(34,197,94,.18)}
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--navy2);color:var(--text);width:min(520px,94vw);padding:20px}dialog::backdrop{background:rgba(0,0,0,.6)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.f{margin-bottom:10px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy3);border:1px solid var(--gold);padding:9px 16px;border-radius:10px;opacity:0;transition:.2s;pointer-events:none}.toast.on{opacity:1}
+.empty{text-align:center;color:var(--muted);padding:34px}
+</style></head><body>
+<div id="app"></div><div class="toast" id="toast"></div>
+<dialog id="dlg"></dialog>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let token=sessionStorage.getItem('opex_admin')||'',data=null,q='',flt='todos',timer;
+const EXP_DAYS=7;
+const SITE='https://opex-fideliza-site.netlify.app';
+const DL_DEFAULT=location.origin+'/download/opex-care.zip';
+const first=l=>(l.name||'').trim().split(/\s+/)[0]||'';
+// Aviso de renovação: registra o dia em que foi enviado (neste navegador) para não avisar duas vezes.
+const noticed=k=>localStorage.getItem('care_notice_'+k)===new Date().toDateString();
+function renewMsg(l,now){const d=l.expiresAt?Math.ceil((l.expiresAt-now)/864e5):null;const quando=d===null?'':d<0?'venceu em '+fmtD(l.expiresAt):d===0?'vence hoje':'vence em '+d+' dia(s), em '+fmtD(l.expiresAt);
+  return l.plan==='Teste'
+   ?`Olá ${first(l)}! Seu teste grátis do Opex Fideliza ${quando}. Gostou? Para continuar sem perder seus clientes e lembretes, escolha um plano: mensal R$ 40, semestral R$ 200 ou anual R$ 350. Posso liberar agora para você?`
+   :`Olá ${first(l)}! Sua licença do Opex Fideliza (${l.plan}) ${quando}. Para seguir com os lembretes e retornos automáticos sem interrupção, posso renovar agora para você?`}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2200)}
+async function api(path,body){
+  const r=await fetch('/api/admin/'+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({ok:false,message:'Resposta inválida'}));
+  if(r.status===401&&path!=='login'){logout();throw new Error('Sessão expirada')}
+  if(!j.ok)throw new Error(j.message||'Erro');return j}
+function logout(){token='';sessionStorage.removeItem('opex_admin');clearInterval(timer);loginView()}
+function loginView(msg=''){
+  const rt=new URLSearchParams(location.search).get('reset');
+  if(rt)return resetView(rt);
+  $('#app').innerHTML=`<div class="login card"><header style="margin-bottom:14px"><img src="/img/logo.png"><div><b>OPEX FIDELIZA</b><small>Gestão de licenças</small></div></header>
+  <p>Acesso restrito à equipe OPEX.</p><form id="lf"><div class="f"><label>Senha do painel</label><input type="password" id="pw" autofocus autocomplete="current-password"></div>
+  <button class="btn gold" style="width:100%">Entrar</button><div class="err" id="le">${esc(msg)}</div></form>
+  <p style="margin:10px 0 0;text-align:center"><a href="#" id="fg" style="color:var(--gold)">Esqueci a senha</a></p></div>`;
+  $('#lf').onsubmit=async e=>{e.preventDefault();$('#le').textContent='';
+    try{const j=await api('login',{password:$('#pw').value});token=j.token;sessionStorage.setItem('opex_admin',token);start()}catch(x){$('#le').textContent=x.message}};
+  $('#fg').onclick=async e=>{e.preventDefault();$('#le').style.color='var(--muted)';$('#le').textContent='Enviando…';
+    try{const j=await api('forgot',{});$('#le').textContent=j.message}catch(x){$('#le').style.color='#fca5a5';$('#le').textContent=x.message}}}
+function resetView(rt){
+  $('#app').innerHTML=`<div class="login card"><h1>Criar nova senha</h1><p>Mínimo de 8 caracteres.</p><form id="rf2"><div class="f"><input type="password" id="np" placeholder="Nova senha" autofocus></div><button class="btn gold" style="width:100%">Salvar senha</button><div class="err" id="le"></div></form></div>`;
+  $('#rf2').onsubmit=async e=>{e.preventDefault();try{await api('reset',{token:rt,password:$('#np').value});history.replaceState({},'','/admin/');loginView('Senha alterada. Entre com a nova senha.')}catch(x){$('#le').textContent=x.message}}}
+const PLAN_DAYS={Teste:3,Mensal:30,Semestral:180,Anual:365};
+const fmtD=t=>t?new Date(t).toLocaleDateString('pt-BR'):'—';
+function ago(t,now){if(!t)return 'nunca';const m=Math.floor((now-t)/6e4);if(m<2)return 'agora';if(m<60)return m+' min';const h=Math.floor(m/60);if(h<24)return h+' h';return Math.floor(h/24)+' d'}
+function dleft(l,now){if(!l.expiresAt)return 'sem vencimento';const d=Math.ceil((l.expiresAt-now)/864e5);return d<0?'venceu há '+(-d)+' d':d===0?'vence hoje':'vence em '+d+' d'}
+async function load(){try{data=await api('licenses');render()}catch(e){if(token)toast(e.message)}}
+function start(){$('#app').innerHTML=`<div class="wrap"><header><img src="/img/logo.png"><div><b>OPEX FIDELIZA</b><small>Gestão de licenças e usuários</small></div><span class="sp"></span>
+<button class="btn" id="dlk">🔗 Link de download</button><button class="btn" id="rf">↻ Atualizar</button><button class="btn" id="cp">🔑 Alterar senha</button><button class="btn" id="lo">Sair</button></header><div id="main"><div class="empty">Carregando…</div></div></div>`;
+  $('#dlk').onclick=async()=>{const u=prompt('Link de download da extensão (https://…). Aparece para quem faz o teste grátis e nas mensagens de liberação:',(data&&data.settings&&data.settings.downloadUrl)||'');if(u===null)return;try{await api('settings',{downloadUrl:u});toast('Link salvo');load()}catch(x){toast(x.message)}};$('#rf').onclick=load;$('#cp').onclick=async()=>{const c=prompt('Senha atual:');if(!c)return;const n=prompt('Nova senha (mínimo 8 caracteres):');if(!n)return;try{const j=await api('change-password',{current:c,password:n});token=j.token;sessionStorage.setItem('opex_admin',token);toast('Senha alterada')}catch(x){toast(x.message)}};$('#lo').onclick=logout;load();clearInterval(timer);timer=setInterval(load,60000)}
+function wa(l,t){return 'https://wa.me/'+String(l.phone||'').replace(/\D/g,'').replace(/^(?!55)/,'55')+'?text='+encodeURIComponent(t)}
+function ordersCard(items,now){
+  const os=items.filter(l=>l.order).sort((a,b)=>b.order.createdAt-a.order.createdAt);
+  if(!os.length)return '';
+  const pend=os.filter(l=>l.order.status==='pendente'),rest=os.filter(l=>l.order.status!=='pendente').slice(0,8);
+  const st={pendente:['expired','Aguardando'],aprovado:['active','Aprovado'],pago:['active','Pago (MP)'],recusado:['blocked','Recusado']};
+  const row=l=>{const o=l.order,p=st[o.status]||['expired',o.status];return `<tr><td><b>${esc(l.name)}</b><div class="sub">${esc(l.phone||'')} · ${esc(l.email||'')}</div></td>
+  <td>${esc(o.label)}${o.amount?` · R$ ${o.amount}`:''}<div class="sub">${new Date(o.createdAt).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}</div></td>
+  <td><span class="pill ${p[0]}">${p[1]}</span></td>
+  <td><div class="acts" data-k="${l.key}"><button class="btn sm gold" data-a="approve">✔ Aprovar</button><button class="btn sm danger" data-a="reject">Recusar</button>
+  <a class="btn sm" target="_blank" rel="noopener" href="${wa(l,'Olá '+(l.name||'').split(' ')[0]+'! Recebi seu pedido do Opex Fideliza.')}">💬 WhatsApp</a></div></td></tr>`};
+  return `<div class="card" style="margin-bottom:16px"><h3 style="margin:0 0 10px">📥 Pedidos <span class="sub">${pend.length} aguardando</span></h3><div class="tw"><table><thead><tr><th>Cliente</th><th>Plano</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+  ${[...pend,...rest].map(row).join('')}</tbody></table></div></div>`}
+function showApproved(l){
+  const d=$('#dlg');const dl=(data&&data.settings&&data.settings.downloadUrl)||localStorage.getItem('opex_dl')||DL_DEFAULT;
+  const msg=()=>`Olá ${(l.name||'').split(' ')[0]}! Seu acesso ao Opex Fideliza foi liberado ✅\n\nLogin: ${l.email||l.phone} (e a senha que você cadastrou no pedido)\n${$('#dlu').value?'Baixe a extensão: '+$('#dlu').value+'\n':''}\nPasso a passo da instalação: ${SITE}/instalar.html`;
+  d.innerHTML=`<h3 style="margin:0 0 6px">Acesso liberado ✅</h3><p class="sub">Envie o aviso ao cliente pelo WhatsApp.</p><div class="f"><label>Link de download da extensão (Drive) — fica salvo</label><input id="dlu" value="${esc(dl)}" placeholder="https://drive.google.com/…"></div>
+  <pre id="dlm" style="white-space:pre-wrap;background:rgba(0,0,0,.4);padding:12px;border-radius:10px;font-size:13px"></pre><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="dcp">Copiar</button><a class="btn gold" id="dwa" target="_blank" rel="noopener">Abrir WhatsApp</a><button class="btn" id="dcx">Fechar</button></div>`;
+  const upd=()=>{localStorage.setItem('opex_dl',$('#dlu').value);$('#dlm').textContent=msg();$('#dwa').href=wa(l,msg())};
+  $('#dlu').oninput=upd;upd();$('#dcp').onclick=()=>{navigator.clipboard.writeText(msg());toast('Copiado')};$('#dcx').onclick=()=>d.close();d.showModal()}
+function render(){
+  const {kpi,items,now}=data;
+  const soon=l=>l.effective==='active'&&l.expiresAt&&l.expiresAt-now<EXP_DAYS*864e5;
+  let list=items.filter(l=>(flt==='todos'||(flt==='online'?l.lastSeen&&now-l.lastSeen<864e5:flt==='expiring'?soon(l):flt==='renew'?(soon(l)||l.effective==='expired'):l.effective===flt))&&(!q||(l.name+l.email+l.phone+l.key+(l.notes||'')).toLowerCase().includes(q.toLowerCase())));
+  const k=(v,t,c='',f='')=>`<div class="card kpi ${c}" ${f?`data-f="${f}" style="cursor:pointer" title="Filtrar"`:''}><b>${v}</b><span>${t}</span></div>`;
+  $('#main').innerHTML=`<div class="kpis">${k(kpi.pedidos||0,'Pedidos aguardando',kpi.pedidos?'w':'','pending')}${k(kpi.total,'Licenças','','todos')}${k(kpi.active,'Ativas','g','active')}${k(kpi.online24h,'Usaram nas últimas 24 h','g','online')}${k(kpi.online7d,'Usaram nos últimos 7 dias')}${k(kpi.expiring7d,'Vencem em 7 dias','w','expiring')}${k(kpi.expired,'Vencidas','w','expired')}${k(kpi.blocked,'Bloqueadas','r','blocked')}${k(kpi.devices,'Computadores ativados')}</div>
+  ${ordersCard(items,now)}
+  <div class="card"><div class="bar"><input id="q" placeholder="Buscar por nome, telefone, e-mail ou chave…" value="${esc(q)}">
+  <select id="flt">${[['todos','Todos'],['renew','A renovar (vencendo + vencidos)'],['expiring','Vencem em '+EXP_DAYS+' dias'],['expired','Vencidos'],['pending','Pedidos aguardando'],['active','Ativos'],['online','Online 24 h'],['blocked','Bloqueados']].map(([v,t])=>`<option value="${v}" ${flt===v?'selected':''}>${t}</option>`).join('')}</select>
+  <button class="btn gold" id="nw">+ Nova licença</button></div>
+  <div class="tw"><table><thead><tr><th>Cliente (login)</th><th>Chave</th><th>Plano / vencimento</th><th>Uso</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+  ${list.map(l=>`<tr><td><b>${esc(l.name)}</b><div class="sub">${esc(l.phone||'')} ${esc(l.email||'')}</div>${l.brand&&l.brand.name?`<div class="sub">🏷 ${esc(l.brand.name)}</div>`:''}${l.notes?`<div class="sub">📝 ${esc(l.notes)}</div>`:''}</td>
+  <td><span class="key" data-copy="${l.key}" title="Clique para copiar">${l.key}</span></td>
+  <td>${esc(l.plan)}${l.mp?` <span class="pill ${l.mp.status==='authorized'?'active':'expired'}" title="Mercado Pago">MP: ${esc({authorized:'assinando',cancelled:'cancelada',paused:'pausada',pending:'pendente'}[l.mp.status]||l.mp.status)}</span>`:''}<div class="sub">${fmtD(l.expiresAt)} · ${dleft(l,now)}</div></td>
+  <td><span class="dot ${l.lastSeen&&now-l.lastSeen<36e5*24?'on':''}"></span>${ago(l.lastSeen,now)}<div class="sub">${l.devices.length}/${l.maxDevices} PC${l.devices[0]&&l.devices[0].version?' · v'+esc(l.devices.map(d=>d.version).filter(Boolean).slice(-1)[0]||''):''}</div></td>
+  <td><span class="pill ${l.effective}">${{active:'Ativa',blocked:'Bloqueada',expired:'Vencida',pending:'Pedido'}[l.effective]}</span></td>
+  <td><div class="acts" data-k="${l.key}">
+   ${l.phone&&(soon(l)||l.effective==='expired')?`<a class="btn sm gold" data-notice="${l.key}" target="_blank" rel="noopener" href="${wa(l,renewMsg(l,now))}">${noticed(l.key)?'✔ Avisado hoje':'💬 Avisar renovação'}</a>`:l.phone?`<a class="btn sm" target="_blank" rel="noopener" href="${wa(l,'Olá '+first(l)+'! ')}">💬</a>`:''}
+   <button class="btn sm" data-a="renew" title="Renova pelo prazo do plano">Renovar plano</button><button class="btn sm" data-a="extend" data-d="30">+30 d</button>
+   ${l.status==='blocked'?'<button class="btn sm" data-a="unblock">Desbloquear</button>':'<button class="btn sm danger" data-a="block">Bloquear</button>'}
+   <button class="btn sm" data-a="reset-devices" title="Libera novos computadores">Liberar PCs</button>
+   <button class="btn sm" data-a="set-password" title="Gera nova senha de acesso do cliente">Nova senha</button><button class="btn sm" data-a="edit">Editar</button><button class="btn sm danger" data-a="delete">Excluir</button></div></td></tr>`).join('')||`<tr><td colspan="6" class="empty">Nenhuma licença encontrada.</td></tr>`}
+  </tbody></table></div></div>`;
+  $('#q').oninput=e=>{q=e.target.value;const p=e.target.selectionStart;render();const i=$('#q');i.focus();i.setSelectionRange(p,p)};
+  $('#flt').onchange=e=>{flt=e.target.value;render()};$('#nw').onclick=()=>form();
+  $('#main').onclick=async e=>{
+    const kf=e.target.closest('[data-f]');if(kf){flt=kf.dataset.f;return render()}
+    const nt=e.target.closest('[data-notice]');if(nt){localStorage.setItem('care_notice_'+nt.dataset.notice,new Date().toDateString());setTimeout(render,300);return}
+    const c=e.target.closest('[data-copy]');if(c){navigator.clipboard.writeText(c.dataset.copy);return toast('Chave copiada')}
+    const b=e.target.closest('button[data-a]');if(!b)return;const key=b.closest('[data-k]').dataset.k,a=b.dataset.a;
+    try{
+      if(a==='edit')return form(items.find(x=>x.key===key));
+      if(a==='set-password'){if(!confirm('Gerar uma nova senha para este cliente? A anterior deixa de valer.'))return;const j=await api(`license/${key}/set-password`,{});const l=items.find(x=>x.key===key);return showCred(l,j.password)}
+      if(a==='delete'){if(!confirm('Excluir esta licença? O cliente perde o acesso na próxima verificação.'))return;await api(`license/${key}/delete`,{})}
+      else if(a==='block'){if(!confirm('Bloquear este cliente? A extensão trava na próxima verificação.'))return;await api(`license/${key}/block`,{})}
+      else if(a==='approve'){const l=items.find(x=>x.key===key);if(!confirm('Aprovar o pedido de '+l.name+' ('+l.order.label+')? O acesso é liberado agora.'))return;const j=await api(`license/${key}/approve`,{});await load();return showApproved(j.license)}
+      else if(a==='reject'){if(!confirm('Recusar este pedido?'))return;await api(`license/${key}/reject`,{})}
+      else if(a==='renew'){const l=items.find(x=>x.key===key);const d=PLAN_DAYS[l.plan];if(!d)return toast('Este plano não tem prazo. Use Editar para trocar o plano.');if(!confirm('Renovar '+l.name+' por '+d+' dias ('+l.plan+')?'))return;await api(`license/${key}/extend`,{days:d})}
+      else await api(`license/${key}/${a}`,{days:Number(b.dataset.d)||undefined});
+      toast('Feito');load()}catch(x){toast(x.message)}}}
+function showCred(l,pw){
+  const d=$('#dlg'),login=l.email||l.phone||'(cadastre e-mail ou telefone)';
+  const dl=(data&&data.settings&&data.settings.downloadUrl)||DL_DEFAULT;
+  const txt=`Olá, ${first(l)}! Seu acesso ao Opex Fideliza está liberado ✅\n\nLogin (e-mail ou telefone): ${login}\nSenha: ${pw}\n(Ou use a chave: ${l.key})\n\nBaixe a extensão: ${dl}\nPasso a passo: ${SITE}/instalar.html`;
+  d.innerHTML=`<h3 style="margin:0 0 10px">Acesso do cliente</h3><p class="sub">Esta senha aparece só agora. Copie e envie ao cliente.</p><pre style="white-space:pre-wrap;background:rgba(0,0,0,.4);padding:12px;border-radius:10px;font-size:13px">${esc(txt)}</pre><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="cc">Copiar</button>${l.phone?`<a class="btn" target="_blank" rel="noopener" href="${wa(l,txt)}">Enviar no WhatsApp</a>`:''}<button class="btn gold" id="cx">Fechar</button></div>`;
+  d.showModal();$('#cc').onclick=()=>{navigator.clipboard.writeText(txt);toast('Copiado')};$('#cx').onclick=()=>d.close()}
+function form(l){let brandLogo=(l&&l.brand&&l.brand.logo)||'';
+  const d=$('#dlg'),n=!l;l=l||{name:'',email:'',phone:'',plan:'Mensal',maxDevices:1,notes:''};
+  d.innerHTML=`<h3 style="margin:0 0 14px">${n?'Nova licença':'Editar licença'}</h3><form id="ff">
+  <div class="f"><label>Nome do cliente / empresa</label><input id="f_name" value="${esc(l.name)}" required></div>
+  <div class="g2"><div class="f"><label>WhatsApp</label><input id="f_phone" value="${esc(l.phone)}"></div><div class="f"><label>E-mail</label><input id="f_email" value="${esc(l.email)}"></div></div>
+  <div class="g2"><div class="f"><label>Plano</label><select id="f_plan">${['Mensal','Semestral','Anual','Teste','Vitalício'].map(p=>`<option ${l.plan===p?'selected':''}>${p}</option>`).join('')}</select></div>
+  <div class="f"><label>Computadores permitidos</label><input id="f_max" type="number" min="1" max="20" value="${l.maxDevices}"></div></div>
+  ${n?`<div class="f"><label>Validade (dias — 0 = sem vencimento)</label><input id="f_days" type="number" min="0" value="30"></div>`:''}
+  <div class="f">
+<label>Nome da empresa (aparece no topo do painel do cliente)</label>
+<input id="f_brand" value="${esc((l.brand&&l.brand.name)||'')}" placeholder="Ex.: Clínica Sorriso">
+</div>
+  <div class="f">
+<label>Logo do cliente (PNG ou JPG)</label>
+<input type="file" id="f_logo" accept="image/*">
+<img id="f_logo_prev" src="${esc(brandLogo)}" style="max-height:48px;margin-top:6px;${brandLogo?'':'display:none'}">
+</div>
+  <div class="f"><label>Observações</label><input id="f_notes" value="${esc(l.notes||'')}"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" id="fc">Cancelar</button><button class="btn gold">${n?'Criar licença':'Salvar'}</button></div></form>`;
+  d.showModal();$('#fc').onclick=()=>d.close();
+  $('#f_logo').onchange=async e=>{const f=e.target.files[0];if(!f)return;brandLogo=await resizeLogo(f);const p=$('#f_logo_prev');p.src=brandLogo;p.style.display=brandLogo?'':'none'};
+  $('#f_plan').onchange=e=>{if(!n)return;const m={Mensal:30,Semestral:180,Anual:365,Teste:3,'Vitalício':0};$('#f_days').value=m[e.target.value]};
+  $('#ff').onsubmit=async e=>{e.preventDefault();
+    const v={name:$('#f_name').value,phone:$('#f_phone').value,email:$('#f_email').value,plan:$('#f_plan').value,maxDevices:Number($('#f_max').value),notes:$('#f_notes').value,brand:{name:$('#f_brand').value.trim(),logo:brandLogo}};
+    try{if(n){v.days=Number($('#f_days').value);const j=await api('create',v);d.close();await load();showCred(j.license,j.password)}
+    else{await api(`license/${l.key}/update`,v);d.close();toast('Salvo');load()}}catch(x){toast(x.message)}}}
+function resizeLogo(file){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,256/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);ok(c.toDataURL('image/png'))};im.onerror=no;im.src=r.result};r.onerror=no;r.readAsDataURL(file)})}
+token?start():loginView();
+</script></body></html>

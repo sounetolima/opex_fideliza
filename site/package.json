@@ -1,0 +1,8 @@
+{
+  "name": "opex-fideliza-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Site de vendas e gestão de licenças do Opex Fideliza.",
+  "engines": { "node": ">=18" },
+  "dependencies": { "@netlify/blobs": "^8.0.0" }
+}

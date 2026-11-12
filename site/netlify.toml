@@ -7,21 +7,9 @@
   to = "/index.html"
   status = 200
 
-# Painel de licenças servido pelo mesmo endereço do site (serviço de licenças no projeto opex-fideliza-admin)
-[[redirects]]
-  from = "/admin"
-  to = "https://opex-fideliza-admin.netlify.app/admin/"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/admin/*"
-  to = "https://opex-fideliza-admin.netlify.app/admin/:splat"
-  status = 200
-  force = true
-
+# API do painel e da extensão: as funções ficam neste mesmo site.
 [[redirects]]
   from = "/api/*"
-  to = "https://opex-fideliza-admin.netlify.app/api/:splat"
+  to = "/.netlify/functions/api/:splat"
   status = 200
   force = true

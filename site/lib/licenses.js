@@ -18,7 +18,7 @@ function createLicenseService({ store, secret, adminPassword }) {
   const fail = (status, message) => Object.assign(new Error(message), { status });
   const digits = (s) => String(s || '').replace(/\D/g, '');
   const norm = (s) => String(s || '').trim().toLowerCase();
-  const newKey = () => 'CARE-' + [0, 1, 2].map(() => crypto.randomBytes(2).toString('hex').toUpperCase()).join('-');
+  const newKey = () => 'FIDE-' + [0, 1, 2].map(() => crypto.randomBytes(2).toString('hex').toUpperCase()).join('-');
   const newPassword = () => crypto.randomBytes(8).toString('base64url').slice(0, 10);
 
   async function load() {

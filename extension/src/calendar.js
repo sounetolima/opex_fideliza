@@ -109,6 +109,8 @@
     if (!set().gcalConnected) throw new Error('Conecte a Google Agenda primeiro.');
     const t = await askToken(true);
     if (t.error) throw new Error(t.error);
+    const free = await C.isFree(calId, startMs, durationMin, t.token);
+    if (!free) throw new Error('Esse horário acabou de ser ocupado. Escolha outro.');
     const endMs = startMs + (Number(durationMin) || 60) * 60e3;
     const desc = [`Tel: ${phone}`, professional ? `Profissional: ${professional}` : '', `Serviço: ${service}`].filter(Boolean).join('\n');
     const r = await fetch(`${API}/calendars/${encodeURIComponent(calId)}/events`, {
@@ -124,6 +126,49 @@
     if (r.status === 401) { await new Promise((res) => chrome.runtime.sendMessage({ type: 'gcal-revoke' }, res)); throw new Error('Sessão do Google expirou. Conecte de novo em Agenda.'); }
     if (!r.ok) throw new Error('Google Agenda não aceitou o evento (' + r.status + ').');
     return r.json();
+  };
+
+  // ---------- disponibilidade (Encontrar horário) ----------
+  // Horário de atendimento da agenda: { start: 'HH:MM', end: 'HH:MM' }. Padrão 08:00–18:00.
+  const atHour = (date, t) => new Date(`${date}T${t || '00:00'}:00`).getTime();
+  // Blocos livres: começa a cada passo (30 min) e só aceita o bloco se ele couber e não bater com nada ocupado.
+  C.slotsFor = ({ busy, workStart, workEnd, durMs, stepMs = 30 * 60e3, now = 0 }) => {
+    const out = [];
+    for (let t = workStart; t + durMs <= workEnd; t += stepMs) {
+      if (t < now) continue;
+      const end = t + durMs;
+      if (busy.some((b) => t < b.end && end > b.start)) continue;
+      out.push(t);
+    }
+    return out;
+  };
+  // Consulta o período ocupado da agenda (leitura apenas).
+  async function busyOf(calId, fromMs, toMs, token) {
+    const r = await fetch(`${API}/freeBusy`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+      body: JSON.stringify({ timeMin: new Date(fromMs).toISOString(), timeMax: new Date(toMs).toISOString(), items: [{ id: calId }] }),
+    });
+    if (r.status === 401) { await new Promise((res) => chrome.runtime.sendMessage({ type: 'gcal-revoke' }, res)); throw new Error('Sessão do Google expirou. Conecte de novo em Agenda.'); }
+    if (!r.ok) throw new Error('Google Agenda respondeu ' + r.status);
+    const data = await r.json();
+    const cal = (data.calendars || {})[calId];
+    if (cal && cal.errors && cal.errors.length) throw new Error('Sem acesso à agenda escolhida. Confira o compartilhamento no Google.');
+    return ((cal && cal.busy) || []).map((b) => ({ start: new Date(b.start).getTime(), end: new Date(b.end).getTime() }));
+  }
+  C.findSlots = async ({ calId, date, durationMin, hours }) => {
+    const t = await askToken(true);
+    if (t.error) throw new Error(t.error);
+    const h = hours || {};
+    const workStart = atHour(date, h.start || '08:00');
+    const workEnd = atHour(date, h.end || '18:00');
+    const busy = await busyOf(calId, workStart, workEnd, t.token);
+    return C.slotsFor({ busy, workStart, workEnd, durMs: (Number(durationMin) || 60) * 60e3, now: Date.now() });
+  };
+  // Confere de novo o horário antes de gravar, para evitar dois atendimentos no mesmo bloco.
+  C.isFree = async (calId, startMs, durationMin, token) => {
+    const busy = await busyOf(calId, startMs, startMs + (Number(durationMin) || 60) * 60e3, token);
+    return busy.length === 0;
   };
 
   // Sincroniza tudo: cria lembretes novos, cancela os que mudaram, mantém o histórico de enviados.
@@ -176,6 +221,10 @@
         });
         created++;
       });
+      // Mantém o status escolhido manualmente (localStatus) quando a agenda é sincronizada de novo.
+      const prevStatus = {};
+      (S.state.appointments || []).forEach((a) => { if (a.localStatus) prevStatus[a.id] = a.localStatus; });
+      appts.forEach((a) => { if (prevStatus[a.id]) a.localStatus = prevStatus[a.id]; });
       S.state.appointments = appts.sort((a, b) => a.start - b.start);
       // Fila enxuta: itens já resolvidos há mais de 90 dias saem (o histórico do cliente fica nas anotações).
       S.state.queue = S.state.queue.filter((q) => q.status === 'pending' || now - (q.sentAt || q.sendAt || q.ts || now) < 90 * 86400e3);

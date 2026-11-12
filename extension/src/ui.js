@@ -229,6 +229,30 @@
     return `<div class="cols">${cols.join('')}</div>`;
   }
 
+  // ---------- consultas do cliente (status por atendimento) ----------
+  const hm = (ms) => new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  // Guarda o que está digitado no formulário de agendamento, para não perder ao redesenhar a tela.
+  function saveBk() {
+    const g = (id) => { const e = shadow.getElementById(id); return e ? e.value.trim() : ''; };
+    ui.bk = { ...(ui.bk || {}), cal: g('bk-cal'), date: g('bk-date'), svc: g('bk-svc'), name: g('bk-name'), phone: g('bk-phone'), prof: g('bk-prof') };
+    return ui.bk;
+  }
+  const APPT_STATUS = ['Agendada', 'Confirmada', 'Paciente aguardando', 'Paciente em atendimento', 'Finalizada', 'Faltou', 'Cancelada pelo paciente', 'Cancelada pelo dentista'];
+  const apptStatus = (a, now) => a.localStatus || (a.status === 'cancelled' ? 'Cancelada' : a.start < now ? 'Finalizada' : 'Agendada');
+  const apptTone = (s) => (/Cancelada|Faltou/.test(s) ? 'bad' : /Confirmada|Finalizada|em atendimento/.test(s) ? 'ok' : /aguardando/.test(s) ? 'gold' : 'blue');
+  function consultasCard(c) {
+    const now = Date.now();
+    const list = (st().appointments || []).filter((a) => sameFone(a.phone, c.phone)).sort((a, b) => b.start - a.start).slice(0, 8);
+    const rows = list.map((a) => {
+      const s = apptStatus(a, now);
+      return `<div class="irow"><div class="itx"><b>${esc(a.service || 'Atendimento')}</b><small>${fmtDT(a.start)}${a.professional ? ' · ' + esc(a.professional) : ''}</small></div>
+        <select class="in" style="width:auto" data-a="appt-status" data-id="${esc(a.id)}">${APPT_STATUS.map((o) => `<option ${o === s ? 'selected' : ''}>${o}</option>`).join('')}</select>
+        <span class="pill ${apptTone(s)}">${esc(s)}</span></div>`;
+    }).join('');
+    const btn = c.phone ? `<div class="row"><button class="btn primary block" data-a="appt-new" data-id="${esc(c.id)}">Agendar nova consulta</button></div>` : '';
+    return `<div class="card"><b>Consultas</b>${btn}${rows || '<div class="muted small">Nenhuma consulta encontrada para este cliente.</div>'}</div>`;
+  }
+
   function clienteTab() {
     const c = activeContact();
     if (!c) return '<div class="card"><b>Nenhum cliente selecionado</b><div class="muted small">Abra uma conversa no WhatsApp Web ou escolha um cliente no Funil.</div></div>';
@@ -246,6 +270,7 @@
         <label class="f">Nascimento</label><input class="in" type="date" data-lset="nascimento" value="${esc(lead.nascimento || '')}">
         <label class="f">Atendente</label><select class="in" data-cset="attId">${attOptions(c.attendance ? c.attendance.attId : set().currentAttendant)}</select>
       </div>
+      ${consultasCard(c)}
       <div class="card"><b>Etapa</b><div class="row wrap">${st().stages.map((s) => stageChip(s, c.stageId === s.id)).join('')}</div>
         <b>Etiquetas</b><div class="row wrap">${st().tags.map((t) => tagChip(t, c.tags.includes(t.id))).join('')}</div></div>
       <div class="card"><b>Atendimento</b>
@@ -332,12 +357,14 @@
         <div class="row"><button class="btn primary block" data-a="cal-connect">Conectar Google Agenda</button></div>
         ${cal.lastError ? `<div class="muted small">${esc(cal.lastError)}</div>` : ''}</div>`;
     }
+    const bk = ui.bk || {};
     const avail = s.availableCalendars || [];
     const chosen = new Map((s.calendars || []).map((c) => [c.id, c]));
     const units = avail.map((a) => {
       const c = chosen.get(a.id);
       return `<div class="irow"><input type="checkbox" data-a="cal-toggle" data-id="${esc(a.id)}" ${c ? 'checked' : ''}>
-        <div class="itx"><b>${esc(a.name)}</b>${c ? `<input class="in" data-a="cal-unit" data-id="${esc(a.id)}" value="${esc(c.name)}" placeholder="Nome da unidade">` : ''}</div></div>`;
+        <div class="itx"><b>${esc(a.name)}</b>${c ? `<input class="in" data-a="cal-unit" data-id="${esc(a.id)}" value="${esc(c.name)}" placeholder="Nome do profissional">
+          <div class="row"><div><label class="f">Início</label><input class="in" type="time" data-a="cal-hours" data-k="start" data-id="${esc(a.id)}" value="${esc((c.hours || {}).start || '08:00')}"></div><div><label class="f">Fim</label><input class="in" type="time" data-a="cal-hours" data-k="end" data-id="${esc(a.id)}" value="${esc((c.hours || {}).end || '18:00')}"></div></div>` : ''}</div></div>`;
     }).join('');
     const now = Date.now();
     const q = st().queue.filter((x) => x.source === 'gcal');
@@ -355,12 +382,14 @@
       </div>
       <div class="card"><b>Agendar serviço</b><div class="muted small">Cria o evento na agenda da unidade. Os lembretes saem automaticamente.</div>
         ${(s.calendars || []).length && (s.services || []).length ? `
-        <label class="f">Unidade</label><select class="in" id="bk-cal">${(s.calendars || []).map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select>
-        <div class="row"><div><label class="f">Data</label><input class="in" type="date" id="bk-date"></div><div><label class="f">Hora</label><input class="in" type="time" id="bk-time"></div></div>
-        <label class="f">Cliente</label><input class="in" id="bk-name" placeholder="Nome">
-        <label class="f">Telefone (com DDD)</label><input class="in" id="bk-phone" placeholder="(79) 99999-9999">
-        <label class="f">Profissional</label><input class="in" id="bk-prof" placeholder="Opcional">
-        <label class="f">Serviço</label><select class="in" id="bk-svc">${(s.services || []).map((x, i) => `<option value="${i}">${esc(x.name)}${x.price ? ' · R$ ' + esc(x.price) : ''}</option>`).join('')}</select>
+        <label class="f">Profissional (agenda)</label><select class="in" id="bk-cal">${(s.calendars || []).map((c) => `<option value="${esc(c.id)}" ${bk.cal === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+        <div class="row"><div><label class="f">Data</label><input class="in" type="date" id="bk-date" value="${esc(bk.date || '')}"></div></div>
+        <label class="f">Cliente</label><input class="in" id="bk-name" placeholder="Nome" value="${esc(bk.name != null ? bk.name : (ui.bookFor || {}).name || '')}">
+        <label class="f">Telefone (com DDD)</label><input class="in" id="bk-phone" placeholder="(79) 99999-9999" value="${esc(bk.phone != null ? bk.phone : (ui.bookFor || {}).phone || '')}">
+        <label class="f">Profissional</label><input class="in" id="bk-prof" placeholder="Opcional" value="${esc(bk.prof || '')}">
+        <label class="f">Serviço</label><select class="in" id="bk-svc">${(s.services || []).map((x, i) => `<option value="${i}" ${String(bk.svc) === String(i) ? 'selected' : ''}>${esc(x.name)}${x.price ? ' · R$ ' + esc(x.price) : ''}</option>`).join('')}</select>
+        <div class="row"><button class="btn ghost block" data-a="slots-find">Encontrar horário</button></div>
+        <div class="row wrap">${(bk.slots || []).map((ms) => `<button class="chip ${bk.pick === ms ? 'on' : ''}" data-a="slot-pick" data-t="${ms}">${hm(ms)}</button>`).join('') || '<div class="muted small">Escolha data e serviço e clique em Encontrar horário.</div>'}</div>
         <div class="row"><button class="btn primary block" data-a="cal-create">Criar na agenda</button></div>`
         : '<div class="muted small">Escolha uma unidade abaixo e cadastre serviços em Ajustes para agendar.</div>'}</div>
       <div class="card"><b>Unidades</b><div class="muted small">Marque uma agenda por unidade e dê um nome. Cada evento deve ter na descrição as linhas <i>Tel: (79) 99999-9999</i> e <i>Profissional: Nome</i>. Para não lembrar, escreva <i>sem lembrete</i>.</div>
@@ -399,7 +428,20 @@
 
   // ---------- ações ----------
   const ACTIONS = {
-    tab: (el) => { ui.tab = el.dataset.t; render(); },
+    tab: (el) => { if (el.dataset.t !== 'agenda') ui.bookFor = null; ui.tab = el.dataset.t; render(); },
+    'slots-find': async () => {
+      const b = saveBk();
+      const s = set();
+      const cal = (s.calendars || []).find((c) => c.id === b.cal);
+      const svc = (s.services || [])[Number(b.svc)];
+      if (!cal || !svc || !b.date) { toast('Escolha unidade, data e serviço.'); return; }
+      ui.bk = { ...b, slots: [], pick: null };
+      ui.bk.slots = await OA.calendar.findSlots({ calId: cal.id, date: b.date, durationMin: svc.minutes, hours: cal.hours });
+      if (!ui.bk.slots.length) toast('Sem horários livres nesse dia.');
+      render();
+    },
+    'slot-pick': (el) => { saveBk(); ui.bk.pick = Number(el.dataset.t); render(); },
+    'appt-new': (el) => { const c = S.contact(el.dataset.id); ui.bookFor = c ? { name: c.name || '', phone: c.phone || '' } : null; ui.tab = 'agenda'; render(); },
     open: (el) => { ui.activeId = el.dataset.id; ui.tab = 'cliente'; render(); },
     'bd-preset': (el) => { ui.bdPreset = el.dataset.k; ui.bdSel.clear(); render(); },
     'bd-toggle': (el) => { el.checked ? ui.bdSel.add(el.dataset.id) : ui.bdSel.delete(el.dataset.id); render(); },
@@ -504,20 +546,21 @@
     },
     'svc-del': (el) => { set().services.splice(Number(el.dataset.i), 1); S.commit(true); render(); },
     'cal-create': async () => {
-      const v = (id) => shadow.getElementById(id).value.trim();
+      const b = saveBk();
       const s = set();
-      const cal = (s.calendars || []).find((c) => c.id === v('bk-cal'));
-      const svc = (s.services || [])[Number(v('bk-svc'))];
-      if (!cal || !svc || !v('bk-date') || !v('bk-time') || !v('bk-name') || !v('bk-phone')) { toast('Preencha unidade, data, hora, cliente, telefone e serviço.'); return; }
+      const cal = (s.calendars || []).find((c) => c.id === b.cal);
+      const svc = (s.services || [])[Number(b.svc)];
+      if (!cal || !svc || !b.date || !b.name || !b.phone || b.pick == null) { toast('Escolha unidade, data, serviço, cliente, telefone e um horário livre.'); return; }
+      const startMs = b.pick;
       try {
-        await OA.calendar.createEvent({ calId: cal.id, startMs: new Date(v('bk-date') + 'T' + v('bk-time') + ':00').getTime(), durationMin: svc.minutes, name: v('bk-name'), phone: v('bk-phone'), professional: v('bk-prof'), service: svc.name });
+        await OA.calendar.createEvent({ calId: cal.id, startMs, durationMin: svc.minutes, name: b.name, phone: b.phone, professional: b.prof, service: svc.name });
         await OA.calendar.sync();
         let sent = false;
         if (s.confirmOnBooking && s.confirmMsg) {
-          const startMs = new Date(v('bk-date') + 'T' + v('bk-time') + ':00').getTime();
-          const text = OA.calendar.render(s.confirmMsg, { evt: { name: v('bk-name'), phone: v('bk-phone'), professional: v('bk-prof'), service: svc.name, start: startMs }, unit: cal });
-          try { await E.send({ phone: v('bk-phone') }, text); sent = true; } catch (e) { toast('Evento criado, mas a confirmação não saiu: ' + (e.message || e)); render(); return; }
+          const text = OA.calendar.render(s.confirmMsg, { evt: { name: b.name, phone: b.phone, professional: b.prof, service: svc.name, start: startMs }, unit: cal });
+          try { await E.send({ phone: b.phone }, text); sent = true; } catch (e) { toast('Evento criado, mas a confirmação não saiu: ' + (e.message || e)); ui.bk = {}; render(); return; }
         }
+        ui.bk = {}; ui.bookFor = null;
         toast(sent ? 'Horário marcado e confirmação enviada ao cliente.' : 'Evento criado na agenda e lembretes programados.');
       } catch (e) { toast(e.message || 'Não foi possível criar o evento.'); }
       render();
@@ -643,6 +686,7 @@
     });
     shadow.addEventListener('change', (e) => {
       const t = e.target;
+      if (t.dataset.a === 'appt-status') { const a = (st().appointments || []).find((x) => x.id === t.dataset.id); if (a) { a.localStatus = t.value; S.commit(true); toast('Status atualizado.'); render(); } return; }
       if (t.dataset.a === 'bd-from') { ui.bdFrom = t.value; render(); return; }
       if (t.dataset.a === 'bd-to') { ui.bdTo = t.value; render(); return; }
       if (t.dataset.a === 'fu-date') {
@@ -652,6 +696,10 @@
           f.ts = d.getTime(); c.followups.sort((a, b) => a.ts - b.ts); S.commit(true); toast('Data do retorno alterada.'); render();
         }
         return;
+      }
+      if (t.dataset.a === 'cal-hours') {
+        set().calendars = (set().calendars || []).map((c) => (c.id === t.dataset.id ? { ...c, hours: { ...(c.hours || {}), [t.dataset.k]: t.value } } : c));
+        S.commit(true); return;
       }
       if (t.dataset.a === 'cal-unit') {
         set().calendars = (set().calendars || []).map((c) => (c.id === t.dataset.id ? { ...c, name: t.value } : c));

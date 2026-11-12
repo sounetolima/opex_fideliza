@@ -59,7 +59,7 @@ chrome.notifications.onClicked.addListener(async (id) => {
   chrome.notifications.clear(id);
 });
 
-const API = 'https://opex-care-licencas.netlify.app/api/';
+const API = 'https://opex-fideliza-site.netlify.app/api/';
 async function verifyLicense(msg) {
   try {
     const ctl = new AbortController();

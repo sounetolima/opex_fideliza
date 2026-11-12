@@ -7,21 +7,21 @@
   to = "/index.html"
   status = 200
 
-# Painel de licenças servido pelo mesmo endereço do site (o serviço de licenças continua no projeto opex-care-licencas)
+# Painel de licenças servido pelo mesmo endereço do site (serviço de licenças no projeto opex-fideliza-admin)
 [[redirects]]
   from = "/admin"
-  to = "https://opex-care-licencas.netlify.app/admin/"
+  to = "https://opex-fideliza-admin.netlify.app/admin/"
   status = 200
   force = true
 
 [[redirects]]
   from = "/admin/*"
-  to = "https://opex-care-licencas.netlify.app/admin/:splat"
+  to = "https://opex-fideliza-admin.netlify.app/admin/:splat"
   status = 200
   force = true
 
 [[redirects]]
   from = "/api/*"
-  to = "https://opex-care-licencas.netlify.app/api/:splat"
+  to = "https://opex-fideliza-admin.netlify.app/api/:splat"
   status = 200
   force = true

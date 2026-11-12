@@ -659,6 +659,8 @@
   ui.mount = async () => {
     const host = document.createElement('div');
     host.id = 'opex-care-host';
+    // Fica acima da interface do WhatsApp; só o painel e o botão recebem cliques.
+    host.style.cssText = 'position:fixed;inset:0;z-index:2147483000;pointer-events:none;';
     document.documentElement.appendChild(host);
     shadow = host.attachShadow({ mode: 'open' });
     const css = await fetch(chrome.runtime.getURL('src/ui.css')).then((r) => r.text());
